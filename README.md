@@ -1,2 +1,1 @@
-# Virtual Theater 
-
+# Virtual Theater Chrome Extension
