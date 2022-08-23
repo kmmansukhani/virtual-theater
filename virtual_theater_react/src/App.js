@@ -68,7 +68,7 @@ class NameForm extends React.Component {
 class WaitingRoom extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { usernames: "", currentUrl: "", chatSocket: null };
+    this.state = { usernames: "", isReadyToStart: false, chatSocket: null };
     this.leaveWatchParty = this.leaveWatchParty.bind(this);
     this.componentDidMount = this.componentDidMount.bind(this);
     this.render = this.render.bind(this);

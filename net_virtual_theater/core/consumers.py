@@ -1,42 +1,44 @@
 import json
-from tkinter.font import names
-from channels.generic.websocket import WebsocketConsumer
-from asgiref.sync import async_to_sync
+from channels.generic.websocket import AsyncWebsocketConsumer
 from . models import *
 from django.db.models import Q
+from channels.db import database_sync_to_async
 
 
-class WaitingRoomConsumer(WebsocketConsumer):
+class WaitingRoomConsumer(AsyncWebsocketConsumer):
 
-    def connect(self):
+    async def connect(self):
         self.party_id = self.scope["url_route"]["kwargs"]["party_id"]
         self.room_group_name = 'waitingroom_%s' % self.party_id
 
-        async_to_sync(self.channel_layer.group_add)(
+        await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
-        self.accept()
+        await self.accept()
 
-
-    def disconnect(self, close_code):
-        async_to_sync(self.channel_layer.group_discard)(
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
 
-    def receive(self, text_data):
+    def get_all_usernames(self, user_id):
+        print("user_id",user_id)
+        usernames = User.objects.filter(party_id=self.party_id).filter(~Q(user_id=user_id)).values_list('username', flat=True)
+        return list(usernames)  
+
+    async def receive(self, text_data):
 
         text_data_json = json.loads(text_data)
         username = text_data_json["username"]
         user_id = text_data_json["user_id"]
-        usernames = User.objects.filter(party_id=self.party_id).filter(~Q(user_id=user_id)).values_list('username', flat=True)
-        print(usernames)
+        usernames = await database_sync_to_async(self.get_all_usernames)(user_id)
         for name in usernames:
-            self.send(text_data=json.dumps({
+            await self.send(text_data=json.dumps({
                 'username': name
             }))
-        async_to_sync(self.channel_layer.group_send)(
+        await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'waitingroom_username',
@@ -44,8 +46,8 @@ class WaitingRoomConsumer(WebsocketConsumer):
             }
         )
 
-    def waitingroom_username(self, event):
+    async def waitingroom_username(self, event):
         username = event['username']
-        self.send(text_data=json.dumps({
+        await self.send(text_data=json.dumps({
             'username': username
         }))
