@@ -1,2 +1,2 @@
-# Netflix Virtual Theater 
+# Virtual Theater 
 
