@@ -68,7 +68,7 @@ class NameForm extends React.Component {
 class WaitingRoom extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { usernames: "", isReadyToStart: false, chatSocket: null };
+    this.state = { usernames: [], isReadyToStart: false, chatSocket: null };
     this.leaveWatchParty = this.leaveWatchParty.bind(this);
     this.componentDidMount = this.componentDidMount.bind(this);
     this.render = this.render.bind(this);
@@ -92,13 +92,22 @@ class WaitingRoom extends React.Component {
 
     this.state.chatSocket.onmessage = (e) => {
       const username = JSON.parse(e.data).username;
-      var toConcat;
-      if (this.state.usernames === "") {
-        toConcat = username;
+      const toRemove = JSON.parse(e.data).toRemove;
+      if (!toRemove) {
+        this.externalWindow.console.log("adding " + username);
+        var newUsernames = this.state.usernames;
+        newUsernames.push(username);
+        this.setState({ usernames: newUsernames });
       } else {
-        toConcat = ", " + username;
+        this.externalWindow.console.log("removing " + username);
+
+        var newUsernames = this.state.usernames;
+        var index = newUsernames.indexOf(username);
+        if (index !== -1) {
+          newUsernames.splice(index, 1);
+          this.setState({ usernames: newUsernames });
+        }
       }
-      this.setState({ usernames: this.state.usernames + toConcat });
     };
     this.state.chatSocket.onopen = (e) => {
       this.state.chatSocket.send(
@@ -114,11 +123,13 @@ class WaitingRoom extends React.Component {
     this.externalWindow.close();
   }
 
+
   leaveWatchParty() {
     const data = JSON.stringify({
       party_id: this.props.partyId,
       user_id: this.props.userId,
     });
+    this.externalWindow.console.log("leaving party");
     axios
       .post("http://localhost:8000/virtual_theater/leavewatchparty/", data, {
         headers: { "Content-Type": "application/json" },
@@ -129,6 +140,22 @@ class WaitingRoom extends React.Component {
         root.render(<NameForm videoId={this.props.videoId} />);
       });
   }
+  arrayToString(array) {
+    if (array.length === 0) {
+      return "";
+    }
+    if (array.length === 1) {
+      return array[0];
+    }
+    var toReturn = array[0];
+    if (array.length > 1) {
+      for (var i = 1; i < array.length; i++) {
+        toReturn += ", " + array[i];
+      }
+    }
+  
+    return toReturn;
+  }
 
   render() {
     var toRender = (
@@ -137,7 +164,8 @@ class WaitingRoom extends React.Component {
           <p>Watch Party</p>
           <div>
             <p>Current Members: </p>
-            <p>{this.state.usernames}</p>
+            <p>{this.arrayToString(this.state.usernames)}</p>
+            <p>I am {this.props.myusername}</p>
             <button onClick={this.leaveWatchParty}>Leave Watch Party</button>
           </div>
         </header>
